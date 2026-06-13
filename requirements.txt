@@ -1,0 +1,17 @@
+# Core dependency: ESC/POS thermal printer driver (pulls in Pillow).
+python-escpos>=3.0
+pyusb>=1.0        # USB printer backend
+pyserial>=3.0     # serial/USB-serial printer backend
+
+# Content sources (all pure-Python / ARM-friendly).
+requests>=2.28               # HTTP for weather, jokes, on-this-day, number facts
+icalendar>=5.0               # parse .ics calendar feeds
+recurring-ical-events>=2.1   # expand recurring events (yearly birthdays, etc.)
+python-dateutil>=2.8         # timezone-aware date math
+astral>=3.2                  # local sunrise/sunset + daylight length (offline)
+ephem>=4.1                   # moon phase + planet positions (offline)
+
+# Optional: enables the Claude-written greeting + word-of-the-day definition.
+# Not installed by default — the SDK pulls pydantic-core (Rust), which can be
+# painful on a Pi Zero W (armv6). The brief degrades gracefully without it.
+#   pip install anthropic

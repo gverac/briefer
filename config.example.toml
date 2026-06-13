@@ -1,0 +1,169 @@
+# Daily Brief configuration.
+#
+# Copy this file to `config.toml` and edit it for your setup:
+#     cp config.example.toml config.toml
+#
+# `config.toml` is gitignored so your real device IDs / API keys / calendar
+# URLs stay local.
+
+[printer]
+# Which python-escpos backend to use:
+#   "dummy"  -> no hardware; output is captured/discarded. Use this on your laptop.
+#   "usb"    -> printer enumerates as a raw USB ESC/POS device (see [printer.usb]).
+#   "serial" -> printer (or its USB-serial adapter) appears as /dev/tty* (see [printer.serial]).
+backend = "dummy"
+
+# Optional escpos capabilities profile name. Leave as "default" unless you know
+# your printer's specific profile. See: python -m escpos.cli list-profiles
+profile = "default"
+
+[printer.usb]
+# Find these with:  python scripts/printer_test.py --list-usb   (run on the Pi)
+# Values are hex. The EM5822H enumerates as 1d81:5721.
+vendor_id  = 0x1d81
+product_id = 0x5721
+# Some printers need explicit interface / endpoints; usually auto-detected.
+# in_ep  = 0x81
+# out_ep = 0x03
+
+[printer.serial]
+# Typical on a Pi: /dev/ttyUSB0 (USB-serial adapter) or /dev/serial0 (GPIO UART).
+port     = "/dev/ttyUSB0"
+baudrate = 19200
+
+[location]
+# Used by the weather and daylight sections. Decimal degrees + an IANA tz name.
+lat = 40.4168
+lon = -3.7038
+tz  = "Europe/Madrid"
+
+[render]
+# The brief is drawn as one bitmap and printed as an image, so it can use a
+# modern TrueType font instead of the printer's built-in receipt font.
+dot_width    = 384        # 58mm @ 203 dpi (use 576 for an 80mm printer)
+body_size    = 22         # body text pixel size
+heading_size = 26         # section heading pixel size
+margin       = 8          # inner left/right margin in dots
+# Optional: override the bundled Inter font with your own TTF paths.
+# font      = "assets/fonts/Inter-Regular.ttf"
+# font_bold = "assets/fonts/Inter-Bold.ttf"
+
+[claude]
+# Optional. With an API key, the header greeting is written fresh each day and
+# the word-of-the-day gets a Claude definition + example sentence. Without a
+# key (or if the `anthropic` package isn't installed) both fall back to the
+# built-in behavior — nothing breaks.
+#   Requires:  pip install anthropic   (optional; not in requirements.txt)
+#   Get a key: https://console.anthropic.com
+# api_key = "sk-ant-..."
+# One short call per feature per day. Opus is the default; Haiku is ~5x cheaper
+# and plenty for these tiny tasks:
+# model = "claude-haiku-4-5"
+
+# ---------------------------------------------------------------------------
+# Sections. FILE ORDER = PRINT ORDER. Move a [[sections]] block to reorder it;
+# set `enabled = false` to skip one without deleting its config.
+# ---------------------------------------------------------------------------
+
+[[sections]]
+type = "weather"
+title = "WEATHER"
+enabled = true
+api_key = "YOUR_OPENWEATHERMAP_KEY"   # https://openweathermap.org/api (free tier)
+# Always Celsius. Shows today's high/low + a representative pictogram.
+
+# Header icons are off by default except for birthdays. Add `icon = "<key>"` to
+# any section to show one (keys: cake, calendar, sun, cloud, hourglass, book,
+# lightbulb, smiley, moon, satellite, planet, art), or `icon = ""` to hide it.
+[[sections]]
+type = "birthdays"
+title = "BIRTHDAYS"
+enabled = true
+# Google Calendar -> Settings -> "Secret address in iCal format", or any
+# published .ics URL. A dedicated Birthdays/Contacts calendar works best.
+ical_url = "https://calendar.google.com/calendar/ical/.../basic.ics"
+horizon_days = 0          # 0 = today only; N = also list the next N days
+checkbox = true           # draw a checkbox so you can tick people off
+
+[[sections]]
+type = "events"
+title = "UPCOMING"
+enabled = true
+ical_url = "https://calendar.google.com/calendar/ical/.../basic.ics"
+horizon_days = 3          # how many days ahead to list
+max_items = 6             # cap the number of events printed
+
+[[sections]]
+type = "oncall"
+title = "ON CALL"
+enabled = true
+ical_url = "https://calendar.google.com/calendar/ical/.../basic.ics"
+keyword = "primary"       # only events whose title contains this (case-insensitive)
+horizon_days = 14         # how far ahead to look for your next shift
+# hide_when_off = false   # set true to omit the section when you're not on call
+# force_state = "today"   # TESTING ONLY: force "today" | "upcoming" | "off"
+
+[[sections]]
+type = "onthisday"
+title = "ON THIS DAY"
+enabled = true
+max_items = 1             # how many historical events to show
+min_age_years = 50        # skip recent news; only events at least this old
+
+[[sections]]
+type = "word"
+title = "WORD OF THE DAY"
+enabled = true
+
+[[sections]]
+type = "trivia"
+title = "TRIVIA"
+enabled = true
+mode = "today"            # today (fact of the day) | random
+
+[[sections]]
+type = "daylight"
+title = "DAYLIGHT"
+enabled = true
+
+[[sections]]
+type = "joke"
+title = "DAD JOKE"
+enabled = true
+
+# A freeform section: your prompt, fed to Claude, capped to a length you choose.
+# Needs a [claude] api_key (above). Disabled here by default.
+[[sections]]
+type = "ai"
+title = "TODAY'S HAIKU"
+enabled = false
+prompt = "Write a single haiku about the morning."
+max_chars = 200           # hard cap on the printed answer
+
+# A "rotate" section cycles through its choices, one per day. Great for the
+# space images so you get a different one each morning. Preview them all with:
+#     python -m daily_brief --dry-run --all-rotations
+[[sections]]
+type = "rotate"
+enabled = true
+
+  [[sections.choices]]
+  type = "moon"            # tonight's moon phase, drawn (no API key)
+  title = "MOON PHASE"
+
+  [[sections.choices]]
+  type = "iss"             # live ISS position on a world map (no API key)
+  title = "ISS TRACKER"
+
+  [[sections.choices]]
+  type = "planets"         # planets above the horizon tonight (no API key)
+  title = "TONIGHT'S PLANETS"
+
+# A different ASCII-art doodle each day (offline, drawn in a monospace font).
+# Add your own pieces to daily_brief/ascii_art.py.
+[[sections]]
+type = "ascii"
+title = "ASCII ART"
+enabled = true
+# use_claude = true       # let Claude draw the art instead (needs [claude] api_key)
+# subject = "a sailboat"  # fix the subject; omit to let Claude pick one each day
