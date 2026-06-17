@@ -72,6 +72,13 @@ class Picture:
 
 
 @dataclass
+class ProgressBar:
+    """A horizontal progress bar filled to `fraction` (0..1), e.g. a countdown."""
+
+    fraction: float
+
+
+@dataclass
 class Mono:
     """Pre-formatted monospace text (e.g. ASCII art); lines are not wrapped."""
 
@@ -86,7 +93,10 @@ class Title:
     subtitle: str = ""
 
 
-Item = Text | Checkbox | Bullet | Banner | KeyVal | Weather | Picture | Mono | Title
+Item = (
+    Text | Checkbox | Bullet | Banner | KeyVal | Weather | Picture | ProgressBar
+    | Mono | Title
+)
 
 
 # --- Sections / Brief ------------------------------------------------------

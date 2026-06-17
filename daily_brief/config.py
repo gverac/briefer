@@ -121,6 +121,35 @@ class ClaudeConfig:
 
 
 @dataclass
+class EmailConfig:
+    """Inbox watcher: print approved email as it arrives (independent of briefs).
+
+    The daemon polls `imap_host` every `poll_seconds` and prints each new
+    message whose `From:` is on `allowed_senders` (and, with `require_auth`,
+    that passes DKIM/DMARC). `active` (= enabled + creds + an allow-list) gates
+    the whole feature, mirroring `ClaudeConfig.active`.
+    """
+
+    enabled: bool = False
+    imap_host: str = "imap.gmail.com"
+    imap_port: int = 993
+    username: str | None = None
+    password: str | None = None
+    allowed_senders: list[str] = field(default_factory=list)
+    require_auth: bool = True  # require DKIM/DMARC pass — blocks From spoofing
+    max_chars: int = 600       # truncate long bodies to this many characters
+    print_images: bool = True
+    mark_read: bool = True      # mark printed messages read so each prints once
+    poll_seconds: int = 60
+
+    @property
+    def active(self) -> bool:
+        return bool(
+            self.enabled and self.username and self.password and self.allowed_senders
+        )
+
+
+@dataclass
 class NetworkConfig:
     """Setup-mode access point + the physical button that re-opens setup."""
 
@@ -182,6 +211,7 @@ class Config:
     location: LocationConfig = field(default_factory=LocationConfig)
     render: RenderConfig = field(default_factory=RenderConfig)
     claude: ClaudeConfig = field(default_factory=ClaudeConfig)
+    email: EmailConfig = field(default_factory=EmailConfig)
     network: NetworkConfig = field(default_factory=NetworkConfig)
     web: WebConfig = field(default_factory=WebConfig)
     briefs: list[BriefConfig] = field(default_factory=list)
@@ -251,6 +281,7 @@ def _from_dict(data: dict) -> Config:
     location_raw = data.get("location", {})
     render_raw = data.get("render", {})
     claude_raw = data.get("claude", {})
+    email_raw = data.get("email", {})
     network_raw = data.get("network", {})
     web_raw = data.get("web", {})
 
@@ -288,6 +319,19 @@ def _from_dict(data: dict) -> Config:
         api_key=claude_raw.get("api_key"),
         model=claude_raw.get("model", "claude-opus-4-8"),
         enabled=claude_raw.get("enabled", True),
+    )
+    email = EmailConfig(
+        enabled=email_raw.get("enabled", False),
+        imap_host=email_raw.get("imap_host", "imap.gmail.com"),
+        imap_port=int(email_raw.get("imap_port", 993)),
+        username=email_raw.get("username"),
+        password=email_raw.get("password"),
+        allowed_senders=[str(s).strip() for s in email_raw.get("allowed_senders", []) if str(s).strip()],
+        require_auth=email_raw.get("require_auth", True),
+        max_chars=int(email_raw.get("max_chars", 600)),
+        print_images=email_raw.get("print_images", True),
+        mark_read=email_raw.get("mark_read", True),
+        poll_seconds=int(email_raw.get("poll_seconds", 60)),
     )
     network = NetworkConfig(
         ap_ssid=network_raw.get("ap_ssid", "daily-brief-setup"),
@@ -329,7 +373,7 @@ def _from_dict(data: dict) -> Config:
 
     return Config(
         printer=printer, location=location, render=render, claude=claude,
-        network=network, web=web, briefs=briefs, schedules=schedules,
+        email=email, network=network, web=web, briefs=briefs, schedules=schedules,
     )
 
 
@@ -377,6 +421,17 @@ def to_dict(config: Config) -> dict:
             "temp_unit": config.render.temp_unit,
         },
         "claude": {"model": config.claude.model, "enabled": config.claude.enabled},
+        "email": {
+            "enabled": config.email.enabled,
+            "imap_host": config.email.imap_host,
+            "imap_port": config.email.imap_port,
+            "allowed_senders": config.email.allowed_senders,
+            "require_auth": config.email.require_auth,
+            "max_chars": config.email.max_chars,
+            "print_images": config.email.print_images,
+            "mark_read": config.email.mark_read,
+            "poll_seconds": config.email.poll_seconds,
+        },
         "network": {
             "ap_ssid": config.network.ap_ssid,
             "ap_password": config.network.ap_password,
@@ -418,6 +473,10 @@ def to_dict(config: Config) -> dict:
             data["render"][opt] = val
     if config.claude.api_key:
         data["claude"]["api_key"] = config.claude.api_key
+    if config.email.username:
+        data["email"]["username"] = config.email.username
+    if config.email.password:
+        data["email"]["password"] = config.email.password
     if config.network.button_gpio is not None:
         data["network"]["button_gpio"] = config.network.button_gpio
     return data

@@ -17,7 +17,8 @@ from functools import lru_cache
 from PIL import Image, ImageDraw, ImageFont
 
 from .brief import (
-    Banner, Brief, Bullet, Checkbox, KeyVal, Mono, Picture, Section, Text, Title, Weather,
+    Banner, Brief, Bullet, Checkbox, KeyVal, Mono, Picture, ProgressBar, Section,
+    Text, Title, Weather,
 )
 from .config import ASSETS_DIR, RenderConfig
 
@@ -205,6 +206,18 @@ class Canvas:
             self.draw.text((self.x0, self.y), line, font=font, fill=0)
             self.y += lh
 
+    def progress(self, fraction: float, height: int = 16) -> None:
+        """Draw a full-width progress bar filled to `fraction` (clamped 0..1)."""
+        fraction = max(0.0, min(1.0, fraction))
+        top = self.y
+        self.draw.rectangle([self.x0, top, self.x1, top + height], outline=0, width=2)
+        inner = round((self.x1 - self.x0 - 4) * fraction)
+        if inner > 0:
+            self.draw.rectangle(
+                [self.x0 + 2, top + 2, self.x0 + 2 + inner, top + height - 2], fill=0
+            )
+        self.y += height + 2
+
     def picture(self, image) -> None:
         img = image.convert("L") if image.mode != "L" else image
         if img.width > self.content_w:
@@ -238,6 +251,8 @@ class Canvas:
             self.weather(item)
         elif isinstance(item, Picture):
             self.picture(item.image)
+        elif isinstance(item, ProgressBar):
+            self.progress(item.fraction)
         elif isinstance(item, Mono):
             self.mono(item.text)
         elif isinstance(item, Title):
@@ -266,16 +281,20 @@ class Canvas:
         return self.img.crop((0, 0, self.W, self.y))
 
 
-def render_brief(printer, brief: Brief, cfg: RenderConfig, preview_path=None) -> Image.Image:
+def render_brief(printer, brief: Brief, cfg: RenderConfig, preview_path=None,
+                 footer: bool = True) -> Image.Image:
     """Render `brief` to an image, print it, and optionally save a PNG preview.
 
     `printer` may be None (preview only). Returns the rendered PIL image.
+    `footer=False` skips the "have a good day" sign-off (used for one-off
+    prints like incoming email that aren't a daily brief).
     """
     canvas = Canvas(cfg)
     canvas.spacer(6)  # small top margin (the greeting is now an ordinary section)
     for section in brief.sections:
         canvas.section(section)
-    canvas.footer()
+    if footer:
+        canvas.footer()
     image = canvas.finish()
 
     if preview_path is not None:

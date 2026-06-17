@@ -42,6 +42,25 @@ enabled = true
 # api_key = "sk-ant-..."
 model = "claude-opus-4-8"  # or "claude-haiku-4-5" (cheaper)
 
+[email]
+# Print incoming email as it arrives — one receipt per message — independent of
+# the briefs/schedules. The daemon polls this mailbox every `poll_seconds` and
+# prints each new unread message from an approved sender, then marks it read so
+# it prints once. Use a DEDICATED, unpublished mailbox; for Gmail enable IMAP
+# and create an App Password (the account password won't work with 2FA).
+enabled = false
+imap_host = "imap.gmail.com"
+imap_port = 993
+# username = "myprinter@gmail.com"
+# password = "abcd efgh ijkl mnop"        # Gmail App Password
+# Only mail From these prints. "@example.com" allows a whole domain.
+allowed_senders = []  # e.g. ["alice@example.com", "@family.example"]
+require_auth = true    # drop mail failing DKIM/DMARC — blocks most From spoofing
+max_chars = 600        # truncate long bodies to this many characters
+print_images = true    # render image attachments
+mark_read = true       # mark printed messages read (so each prints once)
+poll_seconds = 60      # how often to check the mailbox
+
 [network]
 # Setup mode (AP + web server). The button re-opens setup after WiFi is joined.
 ap_ssid     = "daily-brief-setup"
@@ -141,6 +160,18 @@ name = "morning"
   [[briefs.sections]]
   type = "joke"
   title = "DAD JOKE"
+
+  # Days remaining until a target date. Disappears once the date has passed; on
+  # the day itself it prints `arrived_message`. A progress bar (start -> target)
+  # is optional and needs `start_date`.
+  # [[briefs.sections]]
+  # type = "countdown"
+  # title = "COUNTDOWN"
+  # target_date = "2026-12-25"
+  # label = "Christmas"
+  # arrived_message = "Merry Christmas!"
+  # progress_bar = true
+  # start_date = "2026-12-01"
 
 # A tiny second brief, for a midday pick-me-up.
 [[briefs]]

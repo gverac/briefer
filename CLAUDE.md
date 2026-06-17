@@ -40,8 +40,8 @@ One `config.toml` holds global tables plus `[[briefs]]` (each with nested
 - `daily_brief/printer.py` — **the only module that touches hardware.**
   `make_printer(cfg)` returns a python-escpos device (Dummy / Usb / Serial).
 - `daily_brief/brief.py` — data model: `Brief` → `Section` → `Item`s
-  (`Text`, `Checkbox`, `Bullet`, `Banner`, `KeyVal`, `Weather`, `Picture`, `Mono`,
-  `Title`). `Section.icon` is a header pictogram key; `Section.bare` renders items
+  (`Text`, `Checkbox`, `Bullet`, `Banner`, `KeyVal`, `Weather`, `Picture`,
+  `ProgressBar`, `Mono`, `Title`). `Section.icon` is a header pictogram key; `Section.bare` renders items
   with no rule/heading (used by the `greeting` section's centered `Title`). The
   header is just the first section now — there's no special header rendering.
   Sources are data-only; `build_brief(config, brief, ...)` iterates the brief's
@@ -82,6 +82,15 @@ One `config.toml` holds global tables plus `[[briefs]]` (each with nested
   `Scheduler` fires schedules at their time (reloads `config.toml` on change);
   `Controller` adds the setup-mode state machine: **offline ⇒ AP + web server up;
   online ⇒ both down**. A GPIO button (`gpiozero`, optional) re-opens setup.
+  `Scheduler.tick` also calls the mailbox watcher (throttled to `poll_seconds`).
+- `daily_brief/mailbox.py` — **inbox watcher, independent of briefs/schedules.**
+  `poll_and_print(config)` polls `[email]` over IMAP and prints each new unread
+  message from an approved sender as its own receipt, then marks it read. The
+  allow-list is by `From:` (`@domain` allows a whole domain); with `require_auth`
+  it also requires DKIM/DMARC pass (SPF alone isn't trusted) to resist From
+  spoofing. `EmailConfig.active` (= enabled + creds + allow-list) gates it,
+  mirroring `ClaudeConfig.active`. Configured via the top-level `[email]` table,
+  not a brief section. Uses `render_brief(..., footer=False)` for the receipt.
 - `daily_brief/network.py` — `nmcli` wrapper (AP, WiFi join, connectivity). No-ops
   off-Pi (`available()` is False), so the daemon then just runs the scheduler.
 - `daily_brief/web/` — Flask setup UI (`create_app`), server-rendered Jinja +

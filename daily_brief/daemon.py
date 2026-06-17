@@ -16,6 +16,7 @@ import argparse
 import datetime
 import logging
 import threading
+import time
 from pathlib import Path
 
 from .brief import build_brief
@@ -68,6 +69,7 @@ class Scheduler:
         self.config = load_config(self.path)
         self._mtime = self._stat()
         self.last_fired: dict = {}
+        self._last_mail_poll: float | None = None  # monotonic; None = never polled
         self._stop = threading.Event()
 
     def _stat(self):
@@ -92,6 +94,23 @@ class Scheduler:
                 print_brief(self.config, s.brief)
             except Exception as exc:
                 log.error("print failed for %r: %s", s.brief, exc)
+        self._poll_mail()
+
+    def _poll_mail(self) -> None:
+        """Print any newly-arrived approved email, throttled to poll_seconds."""
+        ec = self.config.email
+        if not ec.active:
+            return
+        mono = time.monotonic()
+        if self._last_mail_poll is not None and (mono - self._last_mail_poll) < ec.poll_seconds:
+            return
+        self._last_mail_poll = mono
+        from .mailbox import poll_and_print
+
+        try:
+            poll_and_print(self.config)
+        except Exception as exc:
+            log.error("mailbox poll failed: %s", exc)
 
     def run(self, interval: float = 20.0) -> None:
         log.info("scheduler started (%d schedules)", len(self.config.schedules))

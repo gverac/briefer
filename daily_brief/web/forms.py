@@ -9,6 +9,8 @@ the edited spec fields.
 
 from __future__ import annotations
 
+import re
+
 from ..config import SectionConfig
 from ..sources import DEFAULT_SECTION_ICONS, SECTION_SPECS
 
@@ -112,6 +114,21 @@ def parse_globals_form(form, cfg) -> None:
     if form.get("claude_api_key"):  # blank keeps existing
         cfg.claude.api_key = form["claude_api_key"].strip()
     cfg.claude.model = form.get("claude_model", cfg.claude.model).strip()
+
+    cfg.email.enabled = "email_enabled" in form
+    cfg.email.imap_host = form.get("email_imap_host", cfg.email.imap_host).strip()
+    cfg.email.imap_port = _set_int(form, "email_imap_port", cfg.email.imap_port)
+    cfg.email.username = (form.get("email_username") or "").strip() or None
+    if form.get("email_password"):  # blank keeps existing secret
+        cfg.email.password = form["email_password"].strip()
+    cfg.email.allowed_senders = [
+        s.strip() for s in re.split(r"[\n,]", form.get("email_allowed_senders", "")) if s.strip()
+    ]
+    cfg.email.require_auth = "email_require_auth" in form
+    cfg.email.max_chars = _set_int(form, "email_max_chars", cfg.email.max_chars)
+    cfg.email.print_images = "email_print_images" in form
+    cfg.email.mark_read = "email_mark_read" in form
+    cfg.email.poll_seconds = _set_int(form, "email_poll_seconds", cfg.email.poll_seconds)
 
     cfg.network.ap_ssid = form.get("ap_ssid", cfg.network.ap_ssid).strip()
     if form.get("ap_password"):

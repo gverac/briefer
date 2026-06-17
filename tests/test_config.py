@@ -26,6 +26,33 @@ def test_save_round_trip(tmp_path):
     assert [s.name for s in again.schedules] == [s.name for s in cfg.schedules]
 
 
+def test_email_config_round_trip(tmp_path):
+    from daily_brief.config import Config, EmailConfig
+
+    cfg = load_config("config.example.toml")
+    cfg.email = EmailConfig(
+        enabled=True, username="printer@gmail.com", password="apppw",
+        allowed_senders=["alice@example.com", "@fam.example"],
+        max_chars=250, poll_seconds=45,
+    )
+    out = tmp_path / "config.toml"
+    save_config(cfg, out)
+    again = load_config(out).email
+
+    assert again.enabled and again.active
+    assert again.username == "printer@gmail.com" and again.password == "apppw"
+    assert again.allowed_senders == ["alice@example.com", "@fam.example"]
+    assert again.max_chars == 250 and again.poll_seconds == 45
+
+
+def test_email_inactive_without_creds():
+    from daily_brief.config import EmailConfig
+
+    assert not EmailConfig(enabled=True).active  # no username/password/allow-list
+    assert not EmailConfig(enabled=False, username="u", password="p",
+                           allowed_senders=["a@b.com"]).active  # disabled
+
+
 def test_legacy_flat_sections_migrate_to_default_brief(tmp_path):
     legacy = tmp_path / "old.toml"
     legacy.write_text('[[sections]]\ntype="joke"\n[[sections]]\ntype="daylight"\n')

@@ -59,6 +59,27 @@
     section's AI call fails it shows "(AI unavailable)" rather than the local version.</small>
   </fieldset>
 
+  <fieldset><legend>Email messages</legend>
+    <div class="fields">
+      <label class="check"><input type="checkbox" name="email_enabled" {{ 'checked' if cfg.email.enabled }}> Print incoming email</label>
+      <label>IMAP server<input name="email_imap_host" value="{{ cfg.email.imap_host }}"></label>
+      <label>IMAP port<input type="number" name="email_imap_port" value="{{ cfg.email.imap_port }}"></label>
+      <label>Mailbox address<input name="email_username" value="{{ cfg.email.username or '' }}" placeholder="myprinter@gmail.com"></label>
+      <label>Password / app password<input type="password" name="email_password" placeholder="{{ '•••• (set)' if cfg.email.password else 'unset' }}"></label>
+      <label>Approved senders<textarea name="email_allowed_senders" rows="3" placeholder="alice@example.com&#10;@family.example">{{ cfg.email.allowed_senders | join('\n') }}</textarea></label>
+      <label class="check"><input type="checkbox" name="email_require_auth" {{ 'checked' if cfg.email.require_auth }}> Require DKIM/DMARC pass</label>
+      <label>Max characters<input type="number" name="email_max_chars" value="{{ cfg.email.max_chars }}"></label>
+      <label>Poll seconds<input type="number" name="email_poll_seconds" value="{{ cfg.email.poll_seconds }}"></label>
+      <label class="check"><input type="checkbox" name="email_print_images" {{ 'checked' if cfg.email.print_images }}> Print image attachments</label>
+      <label class="check"><input type="checkbox" name="email_mark_read" {{ 'checked' if cfg.email.mark_read }}> Mark printed messages read</label>
+    </div>
+    <small class="help">Prints email from approved senders as it arrives — one
+    receipt per message — independent of the daily briefs. Use a dedicated,
+    unpublished mailbox; for Gmail enable IMAP and create an App Password. One
+    sender per line; an entry like <code>@example.com</code> allows a whole
+    domain. <strong>Require DKIM/DMARC</strong> drops spoofed mail.</small>
+  </fieldset>
+
   <fieldset><legend>Setup AP &amp; button</legend>
     <div class="fields">
       <label>AP SSID<input name="ap_ssid" value="{{ cfg.network.ap_ssid }}"></label>
