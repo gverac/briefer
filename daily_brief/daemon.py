@@ -196,7 +196,7 @@ class Controller:
     # BOUNCE_SECONDS debounces contact chatter so one press isn't seen as two.
     TAP_WINDOW = 0.4
     HOLD_SECONDS = 5
-    BOUNCE_SECONDS = 0.05
+    BOUNCE_SECONDS = 0.1
 
     def __init__(self, config_path: str | Path | None = None):
         self.config_path = config_path
