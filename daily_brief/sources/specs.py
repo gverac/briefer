@@ -176,6 +176,9 @@ SECTION_SPECS: dict[str, SectionSpec] = {
         fields=[
             Field("prompt", "Prompt", "textarea", help="What Claude should write."),
             Field("max_chars", "Max characters", "int", 280),
+            Field("use_web_search", "Allow web search", "bool", False,
+                  "Let Claude search the web so it can use current information "
+                  "(news, today's events). Slower and costs more per print."),
         ],
     ),
 }

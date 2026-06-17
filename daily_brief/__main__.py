@@ -74,9 +74,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         with open_printer(config.printer) as printer:
-            render_brief(printer, brief, config.render, preview_path=preview_path)
+            image = render_brief(printer, brief, config.render, preview_path=preview_path)
             if preview_path:
                 print(f"printed brief; preview saved to {preview_path}")
+        from . import lastbrief
+
+        lastbrief.save(image)  # reprintable via the button without rebuilding
     except Exception as exc:  # surface hardware/render errors clearly
         print(f"error: failed to print brief: {exc}", file=sys.stderr)
         return 1

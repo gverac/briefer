@@ -84,6 +84,7 @@
     <div class="fields">
       <label>AP SSID<input name="ap_ssid" value="{{ cfg.network.ap_ssid }}"></label>
       <label>AP password<input type="password" name="ap_password" placeholder="•••• (set)"></label>
+      <label>Console host<input name="console_host" value="{{ cfg.network.console_host }}" placeholder="{{ cfg.network.effective_console_host() }} (auto)"></label>
       <label>Button GPIO<input type="number" name="button_gpio" value="{{ cfg.network.button_gpio if cfg.network.button_gpio is not none else '' }}"></label>
     </div>
   </fieldset>

@@ -44,6 +44,28 @@ def test_ai_section_messages(monkeypatch):
     assert s.items[0].text == "the answer"
 
 
+def test_ai_section_web_search_flag(monkeypatch):
+    captured = {}
+
+    def fake_generate(cfg, **kwargs):
+        captured.update(kwargs)
+        return "current news"
+
+    monkeypatch.setattr(ai_source, "generate", fake_generate)
+
+    # default: web search off, modest token budget
+    cfg = SectionConfig(type="ai", title="AI", options={"prompt": "hi"})
+    ai_source.build(cfg, _ctx(api_key="k", enabled=True))
+    assert captured["web_search"] is False
+
+    # opted in: web search on, with headroom for the tool loop
+    cfg = SectionConfig(type="ai", title="NEWS",
+                        options={"prompt": "today's news", "use_web_search": True})
+    ai_source.build(cfg, _ctx(api_key="k", enabled=True))
+    assert captured["web_search"] is True
+    assert captured["max_tokens"] >= 1024
+
+
 def test_word_per_section_use_claude(monkeypatch):
     from daily_brief.sources import word as word_source
 

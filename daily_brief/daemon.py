@@ -19,13 +19,53 @@ import threading
 import time
 from pathlib import Path
 
-from .brief import build_brief
+from .brief import Brief, KeyVal, Section, Text, Title, build_brief
 from .config import DEFAULT_CONFIG_PATH, load_config
 from .render import render_brief
 
 log = logging.getLogger("daily_brief.daemon")
 
 DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def _console_url(host: str, port: int) -> str:
+    """`http://host` (dropping the default :80) — used in the AP setup notice."""
+    return f"http://{host}" if port == 80 else f"http://{host}:{port}"
+
+
+def ap_notice_brief(config, now: datetime.datetime | None = None) -> Brief:
+    """A short receipt telling the user how to join the setup access point."""
+    from . import network
+
+    port = config.web.port
+    friendly = _console_url(config.network.effective_console_host(), port)
+    ip_url = _console_url(network.AP_GATEWAY, port)
+    items = [
+        KeyVal("Network", config.network.ap_ssid),
+        KeyVal("Password", config.network.ap_password),
+        KeyVal("Then open", friendly),
+        Text("Join this WiFi network from a phone or laptop, then open the "
+             "address above in a browser to choose your home network."),
+    ]
+    if ip_url != friendly:
+        items.append(Text(f"If that doesn't load, try {ip_url} — and {friendly} "
+                          "keeps working once the Pi is on your home WiFi."))
+    return Brief(date=now or datetime.datetime.now(), sections=[
+        Section("", [Title("Setup Mode")], bare=True),
+        Section("WIFI SETUP", items),
+    ])
+
+
+def shutdown_notice_brief(config, now: datetime.datetime | None = None) -> Brief:
+    """A short receipt confirming a button-triggered shutdown is underway."""
+    return Brief(date=now or datetime.datetime.now(), sections=[
+        Section("", [
+            Title("Goodbye", "Powering off…"),
+            Text("Wait ~30 seconds before unplugging — the Pi keeps shutting "
+                 "down after this prints. Pulling power too early can corrupt "
+                 "the SD card."),
+        ], bare=True),
+    ])
 
 
 def _is_due(schedule, now: datetime.datetime) -> bool:
@@ -51,14 +91,14 @@ def due_schedules(config, now: datetime.datetime, last_fired: dict) -> list:
 
 def print_brief(config, brief_name: str) -> None:
     """Build and print a brief by name (no-op-safe with the dummy backend)."""
-    from .printer import open_printer
+    from . import lastbrief
 
     brief = config.brief(brief_name)
     if brief is None:
         log.warning("schedule points to unknown brief %r", brief_name)
         return
-    with open_printer(config.printer) as printer:
-        render_brief(printer, build_brief(config, brief), config.render)
+    # print_and_save records it so the button can reprint without rebuilding.
+    lastbrief.print_and_save(config, build_brief(config, brief))
 
 
 class Scheduler:
@@ -150,12 +190,23 @@ class Controller:
     console + scheduler.
     """
 
+    # Button gestures. A single tap reprints; a quick double-tap opens the AP;
+    # a long hold shuts the Pi down. TAP_WINDOW is how long we wait for a second
+    # tap before acting on a single one; HOLD_SECONDS is the shutdown threshold;
+    # BOUNCE_SECONDS debounces contact chatter so one press isn't seen as two.
+    TAP_WINDOW = 0.4
+    HOLD_SECONDS = 5
+    BOUNCE_SECONDS = 0.05
+
     def __init__(self, config_path: str | Path | None = None):
         self.config_path = config_path
         self.scheduler = Scheduler(config_path)
         self.ap_active = False
         self.web: _WebServer | None = None
         self._btn = None
+        self._held = False           # set while a hold (shutdown) is in progress
+        self._taps = 0               # taps seen in the current TAP_WINDOW
+        self._tap_timer: threading.Timer | None = None
         self._stop = threading.Event()
 
     def _start_web(self):
@@ -179,7 +230,8 @@ class Controller:
 
         if network.start_ap(cfg.network.ap_ssid, cfg.network.ap_password):
             self.ap_active = True
-            log.info("access point %r up", cfg.network.ap_ssid)
+            log.info("access point %r up (console at http://%s)",
+                     cfg.network.ap_ssid, cfg.network.effective_console_host())
 
     def stop_ap(self):
         if not self.ap_active:
@@ -197,11 +249,83 @@ class Controller:
         try:
             from gpiozero import Button
 
-            self._btn = Button(pin, hold_time=1)
-            self._btn.when_held = self.start_ap  # hold 1s to (re)open the AP
+            # `when_held` fires once after HOLD_SECONDS; taps are counted on
+            # release (see _on_release) so one button serves all three actions.
+            # `bounce_time` ignores contact chatter so one press isn't counted
+            # twice (which a tap would misread as the double-tap = open-AP).
+            self._btn = Button(pin, hold_time=self.HOLD_SECONDS,
+                               bounce_time=self.BOUNCE_SECONDS)
+            self._btn.when_held = self._on_hold
+            self._btn.when_released = self._on_release
             log.info("setup button on GPIO %s", pin)
         except Exception as exc:  # gpiozero/lgpio missing, bad pin, etc.
             log.warning("button unavailable: %s", exc)
+
+    # --- button gesture handling ------------------------------------------
+
+    def _on_hold(self):
+        """Held past HOLD_SECONDS: shut down (and don't treat release as a tap)."""
+        self._held = True
+        self._shutdown()
+
+    def _on_release(self):
+        """Count a tap and (re)arm the timer that fires once the taps settle."""
+        if self._held:  # this release ends a hold, not a tap
+            self._held = False
+            return
+        self._taps += 1
+        if self._tap_timer is not None:
+            self._tap_timer.cancel()
+        self._tap_timer = threading.Timer(self.TAP_WINDOW, self._flush_taps)
+        self._tap_timer.daemon = True
+        self._tap_timer.start()
+
+    def _flush_taps(self):
+        count, self._taps = self._taps, 0
+        self._dispatch_taps(count)
+
+    def _dispatch_taps(self, count: int):
+        """Map a settled tap count to an action: 1 = reprint, 2+ = open AP."""
+        if count >= 2:
+            log.info("button: double tap -> WiFi setup")
+            self.start_ap()
+            self._print_ap_notice()  # tell the user how to connect
+        elif count == 1:
+            log.info("button: tap -> reprint last brief")
+            self._reprint()
+
+    # --- button actions ----------------------------------------------------
+
+    def _reprint(self):
+        from . import lastbrief
+
+        lastbrief.reprint(self.scheduler.config)
+
+    def _print_notice(self, brief):
+        """Print a one-off notice receipt (no daily-brief footer); never raises."""
+        cfg = self.scheduler.config
+        from .printer import open_printer
+
+        try:
+            with open_printer(cfg.printer) as printer:
+                render_brief(printer, brief, cfg.render, footer=False)
+        except Exception as exc:
+            log.error("could not print notice: %s", exc)
+
+    def _print_ap_notice(self):
+        """Print the AP's SSID/password/URL so a screenless device is usable."""
+        self._print_notice(ap_notice_brief(self.scheduler.config))
+
+    def _shutdown(self):
+        log.info("button: long hold -> shutting down")
+        # Print the goodbye first so it's confirmed before the OS goes down.
+        self._print_notice(shutdown_notice_brief(self.scheduler.config))
+        import subprocess
+
+        try:
+            subprocess.run(["shutdown", "-h", "now"], check=False)
+        except OSError as exc:
+            log.error("shutdown failed: %s", exc)
 
     def run(self, interval: float = 5.0):
         from . import network
@@ -218,10 +342,16 @@ class Controller:
         self._install_button()
         # AP serves the console while offline; it drops once we're back online.
         while not self._stop.wait(interval):
+            # Sync to the real hotspot state first: a WiFi-join attempt from the
+            # console switches the single radio to client mode (dropping the AP)
+            # without going through stop_ap(), so the cached flag can be stale.
+            self.ap_active = network.hotspot_active()
             online = network.is_online()
             if online and self.ap_active:
                 self.stop_ap()
-            elif not online and not self.ap_active:
+            elif not online and not self.ap_active and not network.ap_suppressed():
+                # Skip while a console-initiated WiFi join holds the radio, so we
+                # don't reopen the AP and interrupt the association in progress.
                 self.start_ap()
 
     def stop(self):

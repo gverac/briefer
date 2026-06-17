@@ -95,10 +95,11 @@ def test_settings_round_trip(client, cfgpath):
         "serial_port": "/dev/ttyUSB0", "serial_baudrate": "19200",
         "lat": "51.5", "lon": "-0.1", "tz": "Europe/London",
         "dot_width": "384", "body_size": "22", "heading_size": "26", "margin": "8",
-        "claude_model": "claude-haiku-4-5", "ap_ssid": "brief-ap", "button_gpio": "17",
+        "claude_model": "claude-haiku-4-5", "ap_ssid": "brief-ap", "button_gpio": "24",
     })
     cfg = load_config(cfgpath)
     assert cfg.printer.backend == "usb"
     assert cfg.location.tz == "Europe/London"
     assert cfg.claude.model == "claude-haiku-4-5"
     assert cfg.network.ap_ssid == "brief-ap"
+    assert cfg.network.button_gpio == 24

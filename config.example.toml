@@ -40,7 +40,7 @@ temp_unit    = "C"         # weather units: "C" (°C) or "F" (°F)
 # (or leave the key unset) to use the local behavior everywhere.
 enabled = true
 # api_key = "sk-ant-..."
-model = "claude-opus-4-8"  # or "claude-haiku-4-5" (cheaper)
+model = "claude-sonnet-4-6"  # or "claude-haiku-4-5" (cheaper), "claude-opus-4-8" (most capable)
 
 [email]
 # Print incoming email as it arrives — one receipt per message — independent of
@@ -62,10 +62,15 @@ mark_read = true       # mark printed messages read (so each prints once)
 poll_seconds = 60      # how often to check the mailbox
 
 [network]
-# Setup mode (AP + web server). The button re-opens setup after WiFi is joined.
+# Setup mode (AP + web server). A double-tap of the button re-opens setup after
+# WiFi is joined; a single tap reprints the last brief; a 5s hold powers off.
 ap_ssid     = "daily-brief-setup"
 ap_password = "briefme123"
-button_gpio = 17
+# Hostname the control console is reachable at (printed on the setup slip and the
+# same URL you use day to day). Leave blank to derive "<pi-hostname>.local" from
+# the Pi automatically; mDNS (avahi) serves it during setup and on your LAN.
+# console_host = "briefer.local"
+button_gpio = 24
 
 [web]
 # The control console runs at all times (password-protected). On first visit

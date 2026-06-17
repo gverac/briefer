@@ -243,15 +243,15 @@ def create_app(config_path: str | Path | None = None) -> Flask:
 
     @app.route("/print/<name>", methods=["POST"])
     def print_now(name):
-        from ..printer import open_printer
+        from .. import lastbrief
 
         cfg = load_current()
         brief = cfg.brief(name)
         if brief is None:
             abort(404)
         try:
-            with open_printer(cfg.printer) as printer:
-                render_brief(printer, build_brief(cfg, brief), cfg.render)
+            # Records it as the last brief too, so the button can reprint it.
+            lastbrief.print_and_save(cfg, build_brief(cfg, brief))
             flash(f"Printed {name!r}.", "ok")
         except Exception as exc:
             flash(f"Print failed: {exc}", "error")

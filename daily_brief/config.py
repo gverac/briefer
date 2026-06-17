@@ -112,7 +112,7 @@ class ClaudeConfig:
     UI); AI is `active` only when it's enabled *and* a key is set."""
 
     api_key: str | None = None
-    model: str = "claude-opus-4-8"
+    model: str = "claude-sonnet-4-6"
     enabled: bool = True
 
     @property
@@ -155,7 +155,20 @@ class NetworkConfig:
 
     ap_ssid: str = "daily-brief-setup"
     ap_password: str = "briefme123"
-    button_gpio: int | None = 17
+    button_gpio: int | None = 24
+    # Hostname the control console is reachable at, e.g. "briefer.local". Served
+    # by the Pi's mDNS (avahi, preinstalled on Raspberry Pi OS), so the same URL
+    # works during setup *and* afterward on the home network. Empty = derive it
+    # from the Pi's own hostname, so the printed name can't drift from reality.
+    console_host: str = ""
+
+    def effective_console_host(self) -> str:
+        """The console hostname to advertise: the override, or `<hostname>.local`."""
+        if self.console_host:
+            return self.console_host
+        import socket
+
+        return f"{socket.gethostname().split('.')[0]}.local"
 
 
 @dataclass
@@ -317,7 +330,7 @@ def _from_dict(data: dict) -> Config:
     )
     claude = ClaudeConfig(
         api_key=claude_raw.get("api_key"),
-        model=claude_raw.get("model", "claude-opus-4-8"),
+        model=claude_raw.get("model", "claude-sonnet-4-6"),
         enabled=claude_raw.get("enabled", True),
     )
     email = EmailConfig(
@@ -336,7 +349,8 @@ def _from_dict(data: dict) -> Config:
     network = NetworkConfig(
         ap_ssid=network_raw.get("ap_ssid", "daily-brief-setup"),
         ap_password=network_raw.get("ap_password", "briefme123"),
-        button_gpio=network_raw.get("button_gpio", 17),
+        button_gpio=network_raw.get("button_gpio", 24),
+        console_host=network_raw.get("console_host", ""),
     )
     web = WebConfig(
         host=web_raw.get("host", "0.0.0.0"),
@@ -435,6 +449,7 @@ def to_dict(config: Config) -> dict:
         "network": {
             "ap_ssid": config.network.ap_ssid,
             "ap_password": config.network.ap_password,
+            **({"console_host": config.network.console_host} if config.network.console_host else {}),
         },
         "web": {
             "host": config.web.host,

@@ -133,5 +133,6 @@ def parse_globals_form(form, cfg) -> None:
     cfg.network.ap_ssid = form.get("ap_ssid", cfg.network.ap_ssid).strip()
     if form.get("ap_password"):
         cfg.network.ap_password = form["ap_password"].strip()
+    cfg.network.console_host = form.get("console_host", cfg.network.console_host).strip()
     gpio = (form.get("button_gpio") or "").strip()
     cfg.network.button_gpio = int(gpio) if gpio.isdigit() else None

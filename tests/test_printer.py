@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from daily_brief import lastbrief
 from daily_brief.brief import Brief, Checkbox, KeyVal, Section, Text, Weather
 from daily_brief.config import Config, PrinterConfig, RenderConfig
 from daily_brief.printer import make_printer, open_printer
@@ -59,3 +60,29 @@ def test_unknown_backend_raises():
 
 def test_default_config_is_dummy():
     assert Config().printer.backend == "dummy"
+
+
+def test_reprint_round_trips_saved_brief(monkeypatch, tmp_path):
+    monkeypatch.setattr(lastbrief, "LAST_BRIEF_PATH", tmp_path / "last_brief.png")
+    cfg = Config(printer=PrinterConfig(backend="dummy"))
+
+    assert lastbrief.reprint(cfg) is False  # nothing saved yet
+
+    image = render_brief(None, _sample_brief(), cfg.render)
+    lastbrief.save(image)
+    assert (tmp_path / "last_brief.png").is_file()
+
+    sent = []
+    monkeypatch.setattr(lastbrief, "send_image", lambda printer, img: sent.append(img.size))
+    assert lastbrief.reprint(cfg) is True
+    assert sent == [image.size]  # the saved bitmap was re-sent verbatim
+
+
+def test_print_and_save_records_for_reprint(monkeypatch, tmp_path):
+    # Printing through the shared helper must leave a brief the button can reprint.
+    monkeypatch.setattr(lastbrief, "LAST_BRIEF_PATH", tmp_path / "last_brief.png")
+    cfg = Config(printer=PrinterConfig(backend="dummy"))
+
+    lastbrief.print_and_save(cfg, _sample_brief())
+    assert (tmp_path / "last_brief.png").is_file()
+    assert lastbrief.reprint(cfg) is True  # reprint now has something to print

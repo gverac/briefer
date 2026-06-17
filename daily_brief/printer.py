@@ -70,3 +70,24 @@ def open_printer(cfg: PrinterConfig) -> Iterator:
         close = getattr(printer, "close", None)
         if callable(close):
             close()
+
+
+# Send the bitmap in short horizontal bands instead of one big raster blob.
+# Each band is a self-contained GS v 0 command, so a dropped/late byte over
+# USB/serial can't desync the rest of the image into the "row shifted halfway
+# and wrapped to the other side" misprint — every band re-declares its width and
+# realigns. Smaller transfers are also less likely to overrun the print buffer.
+RASTER_FRAGMENT_HEIGHT = 256
+
+
+def send_image(printer, image) -> None:
+    """Send a rendered bitmap to the printer and cut (feed if no cutter)."""
+    try:
+        printer.hw("INIT")  # ESC @: clear any stale mode before the image
+    except Exception:
+        pass
+    printer.image(image, impl="bitImageRaster", fragment_height=RASTER_FRAGMENT_HEIGHT)
+    try:
+        printer.cut()
+    except Exception:
+        printer.text("\n\n\n")

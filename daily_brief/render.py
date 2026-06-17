@@ -301,10 +301,8 @@ def render_brief(printer, brief: Brief, cfg: RenderConfig, preview_path=None,
         image.save(preview_path)
 
     if printer is not None:
-        printer.image(image, impl="bitImageRaster")
-        try:
-            printer.cut()
-        except Exception:
-            printer.text("\n\n\n")
+        from .printer import send_image
+
+        send_image(printer, image)
 
     return image

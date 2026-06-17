@@ -60,7 +60,10 @@ One `config.toml` holds global tables plus `[[briefs]]` (each with nested
   Space sources live in `space.py` (iss/moon/planets). The `ascii` source draws
   a daily piece from `daily_brief/ascii_art.py` as a `Mono` item, or has Claude
   draw it when `use_claude = true`. The `ai` source (`ai.py`) feeds a config
-  `prompt` to Claude and prints the answer, capped to `max_chars`.
+  `prompt` to Claude and prints the answer, capped to `max_chars`; with
+  `use_web_search = true` it grants Claude the Anthropic-hosted web search tool
+  (`llm.WEB_SEARCH_TOOL`) so the answer can use current info — run server-side,
+  resuming the tool loop on `pause_turn`, no local fetching.
 - `daily_brief/assets/` — bundled Inter + DejaVu Sans Mono fonts, weather
   pictograms (`weather/`), header/banner icons (`icons/`), and the ISS world map
   (`space/world.png`). Regenerate icons with `scripts/gen_icons.py` /
@@ -81,8 +84,17 @@ One `config.toml` holds global tables plus `[[briefs]]` (each with nested
 - `daily_brief/daemon.py` — the long-running service (`python -m daily_brief.daemon`).
   `Scheduler` fires schedules at their time (reloads `config.toml` on change);
   `Controller` adds the setup-mode state machine: **offline ⇒ AP + web server up;
-  online ⇒ both down**. A GPIO button (`gpiozero`, optional) re-opens setup.
+  online ⇒ both down**. A GPIO button (`gpiozero`, optional) is multi-gesture:
+  **single tap** reprints the last brief (`lastbrief.reprint`, no rebuild),
+  **double tap** opens the WiFi setup AP (and prints a notice with the AP
+  SSID/password/console URL via `ap_notice_brief`), **5s hold** prints a goodbye
+  (`shutdown_notice_brief`) and shuts the Pi down. The console URL is `NetworkConfig.effective_console_host()` — the
+  `console_host` override or `<hostname>.local` — served by mDNS so the same URL
+  works during setup and on the LAN afterward; the AP gateway IP is a fallback.
   `Scheduler.tick` also calls the mailbox watcher (throttled to `poll_seconds`).
+- `daily_brief/lastbrief.py` — saves the rendered bitmap of each printed brief to
+  `~/.cache/daily_brief/last_brief.png` (`save()`); `reprint(cfg)` re-sends it to
+  the printer so the button's single tap reprints without network/AI/rebuild.
 - `daily_brief/mailbox.py` — **inbox watcher, independent of briefs/schedules.**
   `poll_and_print(config)` polls `[email]` over IMAP and prints each new unread
   message from an approved sender as its own receipt, then marks it read. The
@@ -93,6 +105,12 @@ One `config.toml` holds global tables plus `[[briefs]]` (each with nested
   not a brief section. Uses `render_brief(..., footer=False)` for the receipt.
 - `daily_brief/network.py` — `nmcli` wrapper (AP, WiFi join, connectivity). No-ops
   off-Pi (`available()` is False), so the daemon then just runs the scheduler.
+  `connect()` builds the profile with an explicit `wifi-sec.key-mgmt wpa-psk`
+  (the single radio can't scan while running the AP, so nmcli can't infer
+  security). The join and the daemon's AP-reconcile loop both drive `wlan0`, so
+  `connect()` calls `suppress_ap()` for the attempt and the loop skips reopening
+  the AP while `ap_suppressed()`; a failed join calls `resume_ap()` so setup mode
+  returns. The loop also re-derives `ap_active` from `hotspot_active()` each tick.
 - `daily_brief/web/` — Flask setup UI (`create_app`), server-rendered Jinja +
   vendored SortableJS (no build). Edits briefs/schedules/settings/WiFi and writes
   `config.toml`. Run standalone: `python -m daily_brief.web`.
