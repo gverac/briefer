@@ -186,11 +186,21 @@ sudo systemctl restart daily-brief
 This moves `config.toml` up to `~/config.toml` and points the service at
 `~/current` (a symlink to the active release).
 
-**Each release: build a tarball and send it.** On your laptop:
+**Each release: bump the version, commit, build, send.** On your laptop:
 
 ```bash
+# 1. bump __version__ in daily_brief/__init__.py, then commit it:
+git commit -am "Release 0.2.0"
+# 2. build (archives the committed tree):
 ./scripts/build-release.sh             # writes dist/briefer-<version>.tgz
 ```
+
+A release is built from the committed tree (`git HEAD`), so the build **refuses
+to run with uncommitted changes** — otherwise the version string and the shipped
+code could disagree (a tarball named 0.2.0 that still contains 0.1.x). Commit
+first. To test a work-in-progress build without committing, use
+`./scripts/build-release.sh --dev`, which bundles your working tree as-is and
+tags the version `+dev` so it's never mistaken for a real release.
 
 Send that `.tgz` to your friend. They open the console (`http://<hostname>.local`)
 on their WiFi, go to **Software**, upload the file, and wait ~30s. The Software
