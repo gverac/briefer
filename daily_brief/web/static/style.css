@@ -1,11 +1,12 @@
 :root {
-  --bg: #f4f1ea; --card: #fff; --ink: #1c1c1c; --muted: #6b6b6b;
-  --line: #e0ddd4; --accent: #b5512f; --accent2: #2f5db5; --danger: #a33;
-  --radius: 10px;
+  --bg: #f3f6f9; --card: #fff; --ink: #1f2733; --muted: #6b7585;
+  --line: #e2e8f0; --accent: #e76f51; --accent2: #2a9d8f; --danger: #d1495b;
+  --header1: #2a9d8f; --header2: #264653;
+  --radius: 12px;
   --control-h: 40px;     /* shared height for buttons, inputs, and selects */
   --control-pad: .5rem .8rem;
   --gap: .5rem;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  --shadow: 0 1px 3px rgba(38, 70, 83, .08);
 }
 * { box-sizing: border-box; }
 body {
@@ -14,12 +15,26 @@ body {
 }
 header {
   display: flex; align-items: center; gap: 1rem 1.5rem; flex-wrap: wrap;
-  padding: .8rem 1.2rem; background: var(--ink); color: #fff;
+  padding: .8rem 1.2rem; color: #fff;
+  background: linear-gradient(135deg, var(--header1), var(--header2));
+  box-shadow: 0 2px 8px rgba(38, 70, 83, .18);
 }
-.brand { color: #fff; text-decoration: none; font-weight: 700; }
-header nav { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
-header nav a { color: #ddd; text-decoration: none; }
-header nav a:hover { color: #fff; }
+.brand { color: #fff; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
+header nav { display: flex; flex-wrap: wrap; gap: .4rem .5rem; }
+header nav a {
+  color: #fff; text-decoration: none; font-size: .9rem; font-weight: 500;
+  padding: .4rem .8rem; border-radius: 999px;
+  background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .22);
+  transition: background .15s, border-color .15s;
+}
+header nav a:hover { background: rgba(255, 255, 255, .26); border-color: rgba(255, 255, 255, .45); }
+
+/* Hamburger toggle — hidden on desktop, shown on mobile via the media query. */
+.nav-burger { display: none; cursor: pointer; padding: .4rem; margin-left: auto; }
+.nav-burger span {
+  display: block; width: 24px; height: 2px; margin: 5px 0;
+  background: #fff; border-radius: 2px; transition: transform .2s, opacity .2s;
+}
 main { max-width: 860px; margin: 0 auto; padding: 1.5rem 1.2rem 4rem; }
 h1 { margin: .2rem 0 1rem; } h2 { margin-top: 2rem; }
 .muted { color: var(--muted); }
@@ -37,6 +52,12 @@ a { color: var(--accent2); }
 .preview { display: block; max-width: 100%; margin-top: .8rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
 
 .row { display: flex; gap: var(--gap); flex-wrap: wrap; align-items: center; margin-top: .8rem; }
+/* Brief action buttons stay on one line, sized to fit their labels. */
+.brief-card .row { flex-wrap: nowrap; gap: .4rem; }
+.brief-card .row > .btn, .brief-card .row > form { flex: 1 1 auto; min-width: 0; }
+.brief-card .row > .btn, .brief-card .row > form > .btn { padding: .5rem .4rem; }
+.brief-card .row > form { display: flex; }
+.brief-card .row > form > .btn { width: 100%; }
 .addrow { margin-top: 1rem; position: sticky; bottom: 0; background: var(--bg); padding: .6rem 0; }
 form { margin: 0; }
 
@@ -116,7 +137,21 @@ legend { padding: 0 .4rem; font-weight: 600; }
 
 /* --- mobile --------------------------------------------------------------- */
 @media (max-width: 600px) {
-  header { gap: .4rem 1rem; padding: .7rem 1rem; }
+  header { gap: .4rem; padding: .7rem 1rem; position: relative; }
+  /* Collapse the nav into a hamburger menu. */
+  .nav-burger { display: block; }
+  header nav {
+    flex-basis: 100%; flex-direction: column; gap: .4rem;
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height .25s ease, opacity .2s ease, margin .25s ease;
+    margin: 0;
+  }
+  header nav a { text-align: center; padding: .6rem .8rem; font-size: 1rem; }
+  .nav-toggle:checked ~ nav { max-height: 30rem; opacity: 1; margin-top: .6rem; }
+  /* Morph the bars into an X when open. */
+  .nav-toggle:checked ~ .nav-burger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-toggle:checked ~ .nav-burger span:nth-child(2) { opacity: 0; }
+  .nav-toggle:checked ~ .nav-burger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
   main { padding: 1.2rem 1rem 3rem; }
   h2 { margin-top: 1.5rem; }
   /* In action rows, buttons grow to equal widths and line up like inputs. */

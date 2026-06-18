@@ -9,17 +9,21 @@
 <body>
   <header>
     <a class="brand" href="{{ url_for('dashboard') }}">🧾 Daily Brief</a>
+    {% if session.get('auth') %}
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" hidden>
+    <label for="nav-toggle" class="nav-burger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </label>
     <nav>
-      {% if session.get('auth') %}
       <a href="{{ url_for('dashboard') }}">Briefs</a>
       <a href="{{ url_for('schedules') }}">Schedules</a>
       <a href="{{ url_for('settings') }}">Settings</a>
-      <a href="{{ url_for('software') }}">Software</a>
+      <a href="{{ url_for('software') }}">Update</a>
       <a href="{{ url_for('wifi') }}">WiFi</a>
       <a href="{{ url_for('set_password') }}">Password</a>
       <a href="{{ url_for('logout') }}">Log out</a>
-      {% endif %}
     </nav>
+    {% endif %}
   </header>
   <main>
     {% with msgs = get_flashed_messages(with_categories=true) %}
