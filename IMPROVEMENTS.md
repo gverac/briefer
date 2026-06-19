@@ -4,17 +4,9 @@ A backlog of follow-up features, split by scope. **Minor** = a focused change in
 one or two files with little new infrastructure. **Major** = new subsystems,
 persistence, or cross-cutting work.
 
-> Two items from the original review are **already being implemented** and are
-> intentionally omitted here: a °C/°F toggle for weather, and a new LIRR trains
-> section.
-
 ## Minor features
 
 ### Carried over from earlier findings
-- **Printer flow-control + `fragment_height` settings.** Addresses the band
-  re-order misprint we diagnosed. Add `dsrdtr`/`rtscts`/`xonxoff` and a
-  fragment-height field to `[printer.serial]`, thread through `printer.py` and
-  the `printer.image(...)` call in `render.py`, and surface in Settings → Printer.
 - **"Clear caches" button in Settings.** `cache_clear()` already exists in
   `sources/_http.py`; it's only reachable today via the per-brief Preview button.
   A global one in Settings is a few lines.

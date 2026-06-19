@@ -8,10 +8,7 @@ Below, `<you>` is your Pi login and `<pi>` is its hostname — substitute your o
 
 ## 1. Flash Raspberry Pi OS
 
-In **Raspberry Pi Imager**, choose **Raspberry Pi OS (64-bit)**, open **⚙
-settings**, and set a hostname (`<pi>`), a username + password (`<you>`), and
-enable **SSH**. WiFi is optional — leave it blank to test the access-point setup
-flow. The hostname is the console's address (`http://<pi>.local`). Write and boot.
+I used the **Raspberry Pi Imager** and chose **Raspberry Pi OS (64-bit)**.
 
 ## 2. SSH in
 
@@ -27,14 +24,13 @@ it to a different name).
 
 ```bash
 sudo apt update
-sudo apt install -y git python3-venv python3-dev build-essential rsync \
+sudo apt install -y git python3-venv python3-dev build-essential \
                     libusb-1.0-0 python3-gpiozero python3-lgpio
 git clone <your-repo> ~/briefer && cd ~/briefer
 ```
 
 `gpiozero`/`lgpio` are the (optional) setup button; `libusb-1.0-0` is for USB
-printers. Developing on a laptop instead? `PI_HOST=<you>@<pi>.local
-./scripts/sync-to-pi.sh` rsyncs your tree to the Pi.
+printers.
 
 ## 4. Install
 
@@ -53,8 +49,8 @@ rule is added — a serial printer needs none:
 
 ```bash
 sudo ESCPOS_USB_ID=1d81:5721 ./scripts/install.sh
-sudo -u daily-brief /opt/daily-brief/current/.venv/bin/python \
-  scripts/printer_test.py --backend usb     # test print
+# Test print
+sudo -u daily-brief /opt/daily-brief/current/.venv/bin/python scripts/printer_test.py --backend usb
 ```
 
 ## 5. Finish in the browser
@@ -74,7 +70,7 @@ reload automatically.
 ```bash
 systemctl status daily-brief          # is it running?
 journalctl -u daily-brief -f          # live logs
-sudo systemctl restart daily-brief    # rarely needed; config reloads on its own
+sudo systemctl restart daily-brief    # restart the service
 ```
 
 - **Button** (GPIO 24): single tap reprints the last brief; double tap re-opens
@@ -84,39 +80,17 @@ sudo systemctl restart daily-brief    # rarely needed; config reloads on its own
 
 ## Updating
 
-**Over SSH (recommended):**
+**Over SSH:**
 
 ```bash
-cd ~/briefer && git pull        # or: PI_HOST=<you>@<pi>.local ./scripts/sync-to-pi.sh
+cd ~/briefer && git pull
 sudo ./scripts/install.sh       # rebuilds + restarts
 ```
-
-**Without SSH** — upload a release tarball through the console's **Software**
-page. The install is atomic: the new version is built and smoke-tested in its own
-slot before going live, and rolls back automatically if it won't start.
-`config.toml` is never touched.
-
-> Off by default — running an uploaded build is risky. Enable it with `[web]
-> allow_remote_update = true` in `/opt/daily-brief/config.toml`, then
-> `sudo systemctl restart daily-brief`. Turn it back off afterward.
-
-Build a tarball on your laptop:
-
-```bash
-git commit -am "Release 0.2.0"   # bump __version__ in daily_brief/__init__.py first
-./scripts/build-release.sh       # writes dist/briefer-<version>.tgz
-```
-
-The build archives the committed tree and refuses a dirty working tree (so the
-version always matches the code). Use `--dev` to bundle the working tree as-is,
-tagged `+dev`. Upload the `.tgz` on the Software page; it applies in ~30s and
-shows the result. (The console is LAN-only — reach it over a tunnel like
-Tailscale if needed.)
 
 ## How the privileges work
 
 The daemon runs as the unprivileged `daily-brief` user; everything is granted
-narrowly, not via root:
+narrowly:
 
 | Need | Granted by |
 |------|-----------|

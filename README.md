@@ -1,16 +1,21 @@
 # Daily Brief
 
-Prints a daily briefing — weather, birthdays, events, word of the day, trivia,
-"on this day", a joke — on a 58mm ESC/POS thermal printer attached to a Raspberry
-Pi Zero (2) W. Driven by [python-escpos](https://github.com/python-escpos/python-escpos).
-The brief is rendered as a bitmap with a TrueType font, so it can show weather
-pictograms, checkboxes, and thin rules.
+Software for the Raspberry Pi Zero 2 W powered brief printer.
+Prints a daily briefing with customizable sections: weather, birthdays, events, word of the day, trivia,
+"on this day", a joke
+Requires an ESC/POS thermal printer driven by [python-escpos](https://github.com/python-escpos/python-escpos).
+
+> ## ⚠️ Disclaimer
+>
+> **Most of this repo was vibe coded** by Claude with a human in the
+> loop driving the hardware decisions and acceptance testing. It works on the
+> author's specific build, but your mileage may vary.
 
 ## How it works
 
-Runs as an appliance: a password-protected **web console** edits everything,
-**briefs** (named, ordered sets of sections) are fired by **schedules**, and a
-daemon prints them. An offline or misconfigured source prints "(unavailable)"
+Runs as an appliance: a password-protected **web console** edits most config,
+**briefs** are named, ordered sets of sections and they are fired by **schedules**.
+An offline or misconfigured source prints "(unavailable)"
 instead of failing the brief.
 
 - **Model:** section → brief → schedule, all in one `config.toml`.
@@ -20,9 +25,26 @@ instead of failing the brief.
   and join a network; it drops once online. A GPIO button re-opens it.
   (Bookworm + NetworkManager.)
 
-Sections: `greeting`, `weather` (OpenWeatherMap), `birthdays` / `events` /
-`oncall` (iCal), `word`, `trivia`, `onthisday`, `daylight`, `joke`, `ascii`,
-`ai` (your prompt → Claude), and `iss` / `moon` / `planets`.
+Available sections: 
+- `greeting`
+- `weather` (OpenWeatherMap)
+- `birthdays` (webcal or iCal)
+- `events` (webcal or iCal)
+- `oncall` (webcal or iCal)
+- `word`
+- `trivia`
+- `onthisday`
+- `daylight`
+- `joke`
+- `ascii`
+- `ai` (custom prompt, Claude only)
+- `iss` (current location of the ISS)
+- `moon` (phase)
+- `planets` (visible planets)
+
+There is also an email integration where you can provide an email and an app password for it.
+The daemon will monitor this email's inbox and print all emails, up to some configurable character limit.
+There's also an allow-list so only approved senders get printed.
 
 ## Project layout
 
@@ -38,36 +60,36 @@ daily_brief/            Python package
   sources/              one builder per section + specs.py (field schema for the UI)
   web/                  Flask setup UI (templates, static, forms)
   assets/               bundled fonts + weather/header pictograms + ISS world map
-scripts/                install.sh, printer_test.py, build-release.sh, sync-to-pi.sh
+scripts/                install.sh, printer_test.py, build-release.sh
 systemd/                daily-brief.service + the release-updater unit
 config.example.toml     copy to config.toml (or let the web UI write it)
 ```
 
-## Develop on a laptop (no printer)
+## Hardware
 
-Requires Python 3.11+. The `dummy` backend needs no hardware.
+This is what I used and what will work witht the 3D models here `(TODO: add link)`. I included STEP files so you
+can use these or modify the models to your needs (e.g. if you want to use a different button, or no button).
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp config.example.toml config.toml           # then edit it
+- Raspberry Pi Zero 2 W (I don't think the Zero would work)
+- Receipt printer module. I think any ECS/POS one would work, but I used [this one](https://www.amazon.com/dp/B0GJDZKYKV)
+- Short USB B to micro USB [cable](https://www.amazon.com/dp/B0DJVG778V)
+- 5V Power supply. Mine is 5 amps
+- I used [these DC jack conenctors](https://www.amazon.com/dp/B07LF1193N)
+- [Button](https://www.amazon.com/dp/B0FM8VM8Z5)
+- 4 [M2.5 self tapping screws](https://www.amazon.com/dp/B08V8BYWHQ) to attach the lid to the housing
+- 4 [M2.5 standoffs](https://www.amazon.com/dp/B075K3QBMX) to attach the Pi to the housing
 
-python -m daily_brief --dry-run              # render a brief to preview.png
-python -m daily_brief.web                     # console at http://127.0.0.1:8080
-python -m daily_brief.daemon --no-setup       # scheduler only (laptop-safe)
-pytest
-```
+The wiring is pretty simple. the Pi and the printer are connected via USB. You need to supply
+5 V to both the Pi and the printer from the power supply, and if you want the button, connect GPIO
+pin 24 (or any pin you choose) to ground through the button.
 
 ## Run on the Pi
+
+See **[INSTALL.md](INSTALL.md)** for more details.
 
 ```bash
 sudo ./scripts/install.sh
 ```
-
-Installs the daemon to run **unprivileged** as a dedicated `daily-brief` user.
-First boot with no WiFi: join the `daily-brief-setup` AP → open
-`http://10.42.0.1` → set a password → enter WiFi. Afterward the console is at
-`http://<hostname>.local`. Full walkthrough: **[INSTALL.md](INSTALL.md)**.
 
 ## Printer setup
 
@@ -92,22 +114,33 @@ echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="1d81", ATTRS{idProduct}=="5721", GROUP
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-## Configuration
-
-All settings live in `config.toml` (gitignored); start from
-[`config.example.toml`](config.example.toml).
-
-- `printer.backend` = `dummy` | `usb` | `serial`
-- `[location]` — `lat` / `lon` / `tz` (used by `weather`, `daylight`)
-- `[render]` — width (`dot_width = 384` for 58mm), font, text sizes
-- Sections — file order is print order; `enabled = false` skips one; extra keys
-  pass to that source (`api_key`, `ical_url`, …)
-
-Only two sources need credentials; everything else works out of the box:
+Three sources need credentials; everything else works out of the box:
 
 - **`weather`** — free [OpenWeatherMap](https://openweathermap.org/api) `api_key`
-- **`birthdays` / `events` / `oncall`** — a published iCal `.ics` URL (`webcal://` ok)
-- **AI (Claude)** — `[claude] enabled` + an `api_key`; used by `greeting`,
-  `word`, `ai`, and `ascii` (each with `use_claude = true`). On failure those
-  print "(AI unavailable)"; off or unkeyed falls back to local behavior. Defaults
-  to Opus; set `model = "claude-haiku-4-5"` for ~5× lower cost.
+- **`birthdays` / `events` / `oncall`** — a published iCal `.ics` URL (`webcal://` also works)
+- **AI (Claude)** — if you want to use the AI feature, you need to supply a claude API key
+
+## Known issues
+
+- Sometimes the first few lines of the brief get printed wrong, where the left side of the text is printed
+ on the right side and the right side on the left. I think this has to do with the printer's hardware and buffer
+ because the briefs are generated fine. I've attempted to fix this by introducing configurable wait times and
+limiting the height of each printed chunk, but you may need to play around with your setup if this happens.
+
+## Other features
+
+### Updater
+
+This is disabled by default, but it technically works. You can create a release by running the `build-release.sh`
+script and then upload the tarball on the web console to update the software. I did this so I can give printers
+to non-technial friends and family and still be able to update the software. However, as-is, it's basically a
+remote code execution vulnerability so until it's improved, it's going to be disabled by default.
+
+### WiFi AP for selecting wifi
+
+This is also a convenience feature for non-technical people. When the device is not connected to any WiFi or when
+the button is pressed twice, it will enter AP mode and advertise its own network (it will print the details too).
+Then the user can join that network, log into the console and select some other WiFi network.
+
+## Assets
+- Map assets created with https://www.mapchart.net
