@@ -74,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         with open_printer(config.printer) as printer:
-            image = render_brief(printer, brief, config.render, preview_path=preview_path)
+            image = render_brief(printer, brief, config.render, preview_path=preview_path,
+                                 printer_cfg=config.printer)
             if preview_path:
                 print(f"printed brief; preview saved to {preview_path}")
         from . import lastbrief

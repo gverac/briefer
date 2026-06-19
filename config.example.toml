@@ -11,6 +11,12 @@
 [printer]
 backend = "dummy"          # "dummy" (laptop) | "usb" | "serial"
 profile = "default"
+# Raster pacing: the bitmap is sent in horizontal bands with a pause between
+# them so the printer's buffer can drain. Prevents the opening-burst overrun
+# that shifts the first sections sideways. If you still see a shifted print,
+# lower band_height and/or raise band_pause; raise band_height to print faster.
+band_height = 64           # rows per GS v 0 band
+band_pause  = 0.05         # seconds to pause between bands
 
 [printer.usb]
 vendor_id  = 0x1d81        # find with: python scripts/printer_test.py --list-usb

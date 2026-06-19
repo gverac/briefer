@@ -45,6 +45,11 @@ class PrinterConfig:
     profile: str = "default"
     usb: UsbConfig = field(default_factory=UsbConfig)
     serial: SerialConfig = field(default_factory=SerialConfig)
+    # Raster pacing: send the bitmap in short bands with a pause between them so
+    # the printer's input buffer can drain (avoids the opening-burst overrun
+    # that shifts the first sections sideways). See printer.send_image.
+    band_height: int = 64
+    band_pause: float = 0.05
 
 
 @dataclass
@@ -315,6 +320,8 @@ def _from_dict(data: dict) -> Config:
             port=serial_raw.get("port", "/dev/ttyUSB0"),
             baudrate=serial_raw.get("baudrate", 19200),
         ),
+        band_height=int(printer_raw.get("band_height", 64)),
+        band_pause=float(printer_raw.get("band_pause", 0.05)),
     )
     location = LocationConfig(
         lat=float(location_raw.get("lat", 0.0)),
@@ -417,6 +424,8 @@ def to_dict(config: Config) -> dict:
         "printer": {
             "backend": config.printer.backend,
             "profile": config.printer.profile,
+            "band_height": config.printer.band_height,
+            "band_pause": config.printer.band_pause,
             "usb": {
                 "vendor_id": config.printer.usb.vendor_id,
                 "product_id": config.printer.usb.product_id,

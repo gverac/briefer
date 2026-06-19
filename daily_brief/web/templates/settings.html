@@ -15,7 +15,10 @@
       <label>USB product id<input name="usb_product_id" value="0x{{ '%04x' % cfg.printer.usb.product_id }}"></label>
       <label>Serial port<input name="serial_port" value="{{ cfg.printer.serial.port }}"></label>
       <label>Serial baud<input type="number" name="serial_baudrate" value="{{ cfg.printer.serial.baudrate }}"></label>
+      <label>Band height<input type="number" name="band_height" min="1" value="{{ cfg.printer.band_height }}"></label>
+      <label>Band pause (s)<input type="number" step="0.01" min="0" name="band_pause" value="{{ cfg.printer.band_pause }}"></label>
     </div>
+    <p class="hint">Rows per raster band and the pause between them. Lower the height or raise the pause if the first sections print shifted sideways.</p>
   </fieldset>
 
   <fieldset><legend>Location</legend>

@@ -98,6 +98,8 @@ def parse_globals_form(form, cfg) -> None:
     cfg.printer.usb.product_id = _set_int(form, "usb_product_id", cfg.printer.usb.product_id)
     cfg.printer.serial.port = form.get("serial_port", cfg.printer.serial.port).strip()
     cfg.printer.serial.baudrate = _set_int(form, "serial_baudrate", cfg.printer.serial.baudrate)
+    cfg.printer.band_height = _set_int(form, "band_height", cfg.printer.band_height)
+    cfg.printer.band_pause = _set_float(form, "band_pause", cfg.printer.band_pause)
 
     cfg.location.lat = _set_float(form, "lat", cfg.location.lat)
     cfg.location.lon = _set_float(form, "lon", cfg.location.lon)

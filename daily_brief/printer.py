@@ -11,6 +11,7 @@ the native USB libs aren't present.
 
 from __future__ import annotations
 
+import time
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -73,20 +74,47 @@ def open_printer(cfg: PrinterConfig) -> Iterator:
 
 
 # Send the bitmap in short horizontal bands instead of one big raster blob.
-# Each band is a self-contained GS v 0 command, so a dropped/late byte over
-# USB/serial can't desync the rest of the image into the "row shifted halfway
-# and wrapped to the other side" misprint — every band re-declares its width and
-# realigns. Smaller transfers are also less likely to overrun the print buffer.
-RASTER_FRAGMENT_HEIGHT = 256
+# Each band is a self-contained GS v 0 command, so a dropped/late byte can't
+# desync the rest of the image into the "row shifted halfway and wrapped to the
+# other side" misprint — every band re-declares its width and realigns.
+#
+# The misprint we actually hit was an *opening-burst overrun*: the host pushes
+# the first kilobytes faster than the (slow) thermal head can drain them, the
+# printer's input buffer overflows, and bytes are dropped before write-side
+# backpressure kicks in — which is why only the first sections were corrupted.
+# Two mitigations together fix it: small bands (a smaller burst is less likely
+# to overrun, and any single overrun corrupts fewer rows) and a short pause
+# between bands so the printer can drain before the next one arrives. Both are
+# tunable via [printer] band_height / band_pause; these are the fallbacks for
+# when no PrinterConfig is passed (e.g. older callers).
+RASTER_FRAGMENT_HEIGHT = 64
+BAND_PAUSE_SECONDS = 0.05
 
 
-def send_image(printer, image) -> None:
+def send_image(printer, image, cfg: PrinterConfig | None = None) -> None:
     """Send a rendered bitmap to the printer and cut (feed if no cutter)."""
+    band_height = cfg.band_height if cfg else RASTER_FRAGMENT_HEIGHT
+    band_pause = cfg.band_pause if cfg else BAND_PAUSE_SECONDS
+
     try:
         printer.hw("INIT")  # ESC @: clear any stale mode before the image
     except Exception:
         pass
-    printer.image(image, impl="bitImageRaster", fragment_height=RASTER_FRAGMENT_HEIGHT)
+
+    # Drive the banding ourselves (rather than letting printer.image() split)
+    # so we can flush + pause between bands. Each printer.image() call here gets
+    # the whole band as one GS v 0 (fragment_height >= band height, so escpos
+    # won't split it further).
+    height = image.height
+    for top in range(0, height, band_height):
+        band = image.crop((0, top, image.width, min(top + band_height, height)))
+        printer.image(band, impl="bitImageRaster", fragment_height=band.height)
+        flush = getattr(printer, "flush", None)
+        if callable(flush):
+            flush()
+        if band_pause > 0:
+            time.sleep(band_pause)
+
     try:
         printer.cut()
     except Exception:

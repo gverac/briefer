@@ -87,7 +87,7 @@ def poll_and_print(config: Config, *, now: datetime | None = None) -> int:
                 from .printer import open_printer
 
                 printer = open_printer(config.printer).__enter__()
-            render_brief(printer, brief, config.render, footer=False)
+            render_brief(printer, brief, config.render, footer=False, printer_cfg=config.printer)
             printed += 1
 
             if ec.mark_read:

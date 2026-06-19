@@ -30,6 +30,11 @@
 # Raw-USB printer? Pass its USB id so a udev rule is installed for it:
 #   sudo ESCPOS_USB_ID=1d81:5721 ./scripts/install.sh
 # (Serial printers need no rule — the `dialout` group covers them.)
+#
+# Developing on the device? REUSE_VENV=1 reuses one shared venv across re-runs
+# instead of rebuilding it each time, so a re-install takes seconds not minutes:
+#   sudo REUSE_VENV=1 ./scripts/install.sh
+# (Leave it off for the device you actually ship — releases stay self-contained.)
 
 set -euo pipefail
 
@@ -100,7 +105,9 @@ chown -R "$USER_NAME:$USER_NAME" "$DEST"
 
 # --- 6. build the release layout (as the service user) ----------------------
 echo "==> building release (the venv build can take a few minutes on a Pi Zero)"
-sudo -u "$USER_NAME" "$DEST/scripts/setup-releases.sh"
+# REUSE_VENV=1 (set when developing) makes setup-releases reuse one shared venv
+# instead of rebuilding from scratch; pass it through the sudo env barrier.
+sudo -u "$USER_NAME" env REUSE_VENV="${REUSE_VENV:-0}" "$DEST/scripts/setup-releases.sh"
 
 # --- 7. systemd units -------------------------------------------------------
 install -m 0644 "$BASE/current/systemd/daily-brief.service"        /etc/systemd/system/

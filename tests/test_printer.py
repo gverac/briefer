@@ -73,7 +73,7 @@ def test_reprint_round_trips_saved_brief(monkeypatch, tmp_path):
     assert (tmp_path / "last_brief.png").is_file()
 
     sent = []
-    monkeypatch.setattr(lastbrief, "send_image", lambda printer, img: sent.append(img.size))
+    monkeypatch.setattr(lastbrief, "send_image", lambda printer, img, cfg=None: sent.append(img.size))
     assert lastbrief.reprint(cfg) is True
     assert sent == [image.size]  # the saved bitmap was re-sent verbatim
 

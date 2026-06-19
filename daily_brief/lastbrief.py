@@ -38,7 +38,7 @@ def print_and_save(cfg, brief):
     from .render import render_brief
 
     with open_printer(cfg.printer) as printer:
-        image = render_brief(printer, brief, cfg.render)
+        image = render_brief(printer, brief, cfg.render, printer_cfg=cfg.printer)
     save(image)
     return image
 
@@ -52,7 +52,7 @@ def reprint(cfg) -> bool:
         return False
     try:
         with Image.open(LAST_BRIEF_PATH) as image, open_printer(cfg.printer) as printer:
-            send_image(printer, image)
+            send_image(printer, image, cfg.printer)
         return True
     except Exception as exc:
         log.error("reprint failed: %s", exc)

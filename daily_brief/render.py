@@ -282,12 +282,14 @@ class Canvas:
 
 
 def render_brief(printer, brief: Brief, cfg: RenderConfig, preview_path=None,
-                 footer: bool = True) -> Image.Image:
+                 footer: bool = True, printer_cfg=None) -> Image.Image:
     """Render `brief` to an image, print it, and optionally save a PNG preview.
 
     `printer` may be None (preview only). Returns the rendered PIL image.
     `footer=False` skips the "have a good day" sign-off (used for one-off
-    prints like incoming email that aren't a daily brief).
+    prints like incoming email that aren't a daily brief). `printer_cfg` (a
+    `PrinterConfig`) supplies the raster band pacing; if omitted, `send_image`
+    falls back to its module defaults.
     """
     canvas = Canvas(cfg)
     canvas.spacer(6)  # small top margin (the greeting is now an ordinary section)
@@ -303,6 +305,6 @@ def render_brief(printer, brief: Brief, cfg: RenderConfig, preview_path=None,
     if printer is not None:
         from .printer import send_image
 
-        send_image(printer, image)
+        send_image(printer, image, printer_cfg)
 
     return image

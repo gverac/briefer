@@ -308,7 +308,7 @@ class Controller:
 
         try:
             with open_printer(cfg.printer) as printer:
-                render_brief(printer, brief, cfg.render, footer=False)
+                render_brief(printer, brief, cfg.render, footer=False, printer_cfg=cfg.printer)
         except Exception as exc:
             log.error("could not print notice: %s", exc)
 
