@@ -18,12 +18,18 @@ Runs as an appliance: a password-protected **web console** edits most config,
 An offline or misconfigured source prints "(unavailable)"
 instead of failing the brief.
 
-- **Model:** section → brief → schedule, all in one `config.toml`.
+### Sample brief
+
+![Sample brief](sample_brief.png)
+
+- **Model:** `section`s containes `brief`s which are assigned to `schedule`s, all in one `config.toml`.
 - **Console:** reorder sections (drag-drop), edit keys / calendar URLs / prompts,
   manage briefs + schedules + settings, enter WiFi, print/preview.
 - **Setup AP:** with no WiFi the Pi becomes an access point to reach the console
   and join a network; it drops once online. A GPIO button re-opens it.
   (Bookworm + NetworkManager.)
+
+### Sections
 
 Available sections: 
 - `greeting`
@@ -42,9 +48,19 @@ Available sections:
 - `moon` (phase)
 - `planets` (visible planets)
 
+### Email printing
+
 There is also an email integration where you can provide an email and an app password for it.
 The daemon will monitor this email's inbox and print all emails, up to some configurable character limit.
 There's also an allow-list so only approved senders get printed.
+
+### Button
+
+There is support for a button that can do three actions:
+1. Single press: reprints the last printed brief
+2. Double press: enters WiFi setup mode. Will print the advertised SSID and password, the user can then
+choose a different network to join on the console
+3. Long press (5 seconds): shuts down the raspberry pi safely
 
 ## Project layout
 
@@ -67,7 +83,7 @@ config.example.toml     copy to config.toml (or let the web UI write it)
 
 ## Hardware
 
-This is what I used and what will work witht the 3D models here `(TODO: add link)`. I included STEP files so you
+This is what I used and what will work witht the 3D models [here](https://www.printables.com/model/1758897). I included STEP files so you
 can use these or modify the models to your needs (e.g. if you want to use a different button, or no button).
 
 - Raspberry Pi Zero 2 W (I don't think the Zero would work)
