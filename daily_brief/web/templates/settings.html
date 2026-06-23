@@ -35,6 +35,7 @@
       <label>Body size<input type="number" name="body_size" value="{{ cfg.render.body_size }}"></label>
       <label>Heading size<input type="number" name="heading_size" value="{{ cfg.render.heading_size }}"></label>
       <label>Margin<input type="number" name="margin" value="{{ cfg.render.margin }}"></label>
+      <label>Min length (mm)<input type="number" name="min_length_mm" min="0" value="{{ cfg.render.min_length_mm }}"></label>
       <label>Time format
         <select name="time_format">
           <option value="24h" {{ 'selected' if cfg.render.time_format != '12h' }}>24-hour (military)</option>

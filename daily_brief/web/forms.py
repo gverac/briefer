@@ -109,6 +109,7 @@ def parse_globals_form(form, cfg) -> None:
     cfg.render.body_size = _set_int(form, "body_size", cfg.render.body_size)
     cfg.render.heading_size = _set_int(form, "heading_size", cfg.render.heading_size)
     cfg.render.margin = _set_int(form, "margin", cfg.render.margin)
+    cfg.render.min_length_mm = _set_int(form, "min_length_mm", cfg.render.min_length_mm)
     cfg.render.time_format = "12h" if form.get("time_format") == "12h" else "24h"
     cfg.render.temp_unit = "F" if form.get("temp_unit") == "F" else "C"
 

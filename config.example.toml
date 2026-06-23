@@ -38,6 +38,7 @@ heading_size = 26
 margin       = 8
 time_format  = "24h"       # clock display: "24h" (military) or "12h" (am/pm)
 temp_unit    = "C"         # weather units: "C" (°C) or "F" (°F)
+min_length_mm = 0          # pad short prints with blank feed to this length (mm); 0 = off
 
 [claude]
 # `enabled` is the master AI toggle. When on AND a key is set, AI is used by the

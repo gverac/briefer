@@ -70,6 +70,10 @@ class RenderConfig:
     margin: int = 8  # left/right inner margin in dots
     time_format: str = "24h"  # "24h" (military) or "12h" (am/pm)
     temp_unit: str = "C"  # weather display: "C" (°C) or "F" (°F)
+    # Minimum printed length in mm. A short brief/email is padded with blank
+    # feed up to this length so there's always enough paper past the tear bar to
+    # grab and tear cleanly. 0 disables padding (print exactly the content).
+    min_length_mm: int = 0
 
     def format_temp(self, celsius) -> str:
         """Render a Celsius value as a degree string honouring `temp_unit`."""
@@ -338,6 +342,7 @@ def _from_dict(data: dict) -> Config:
         margin=int(render_raw.get("margin", 8)),
         time_format=render_raw.get("time_format", "24h"),
         temp_unit=render_raw.get("temp_unit", "C"),
+        min_length_mm=int(render_raw.get("min_length_mm", 0)),
     )
     claude = ClaudeConfig(
         api_key=claude_raw.get("api_key"),
@@ -447,6 +452,7 @@ def to_dict(config: Config) -> dict:
             "margin": config.render.margin,
             "time_format": config.render.time_format,
             "temp_unit": config.render.temp_unit,
+            "min_length_mm": config.render.min_length_mm,
         },
         "claude": {"model": config.claude.model, "enabled": config.claude.enabled},
         "email": {

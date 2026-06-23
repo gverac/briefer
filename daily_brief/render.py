@@ -25,6 +25,23 @@ from .config import ASSETS_DIR, RenderConfig
 SCRATCH_HEIGHT = 8000  # tall scratch canvas; cropped to used height at the end
 ICON_SIZE = 84       # weather pictogram
 BANNER_ICON = 52     # smaller inline icon (e.g. on-call bell)
+DOTS_PER_MM = 8      # vertical print density at 203 dpi (8 dots/mm)
+
+
+def _pad_to_min_length(image: Image.Image, min_length_mm: int) -> Image.Image:
+    """Extend a short bitmap with blank feed up to `min_length_mm`.
+
+    Guarantees enough paper past the tear bar to grab and tear cleanly. Returns
+    the image unchanged when padding is disabled (<= 0) or already long enough.
+    """
+    if min_length_mm <= 0:
+        return image
+    min_h = min_length_mm * DOTS_PER_MM
+    if image.height >= min_h:
+        return image
+    padded = Image.new("L", (image.width, min_h), 255)
+    padded.paste(image, (0, 0))
+    return padded
 
 
 @lru_cache(maxsize=64)
@@ -297,7 +314,7 @@ def render_brief(printer, brief: Brief, cfg: RenderConfig, preview_path=None,
         canvas.section(section)
     if footer:
         canvas.footer()
-    image = canvas.finish()
+    image = _pad_to_min_length(canvas.finish(), cfg.min_length_mm)
 
     if preview_path is not None:
         image.save(preview_path)

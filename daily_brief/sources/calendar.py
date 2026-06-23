@@ -8,7 +8,7 @@ over a date window with `recurring_ical_events`.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import recurring_ical_events
 from icalendar import Calendar
@@ -39,10 +39,17 @@ def _load_calendar(url: str | None) -> Calendar | None:
 
 
 def _occ_start(component):
-    """Return the occurrence's DTSTART as a (date, datetime-for-sorting) pair."""
+    """Return the occurrence's DTSTART as a (date, datetime-for-sorting) pair.
+
+    The sort datetime is always naive so timed (tz-aware) and all-day (naive)
+    occurrences can be ordered together; aware values are normalized to UTC.
+    """
     dt = component.get("DTSTART").dt
     if isinstance(dt, datetime):
-        return dt.date(), dt
+        sort_dt = dt
+        if sort_dt.tzinfo is not None:
+            sort_dt = sort_dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt.date(), sort_dt
     return dt, datetime(dt.year, dt.month, dt.day)
 
 
