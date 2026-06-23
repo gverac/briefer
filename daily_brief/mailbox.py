@@ -58,7 +58,6 @@ def poll_and_print(config: Config, *, now: datetime | None = None) -> int:
         return 0
 
     printed = 0
-    printer = None
     try:
         conn.login(ec.username, ec.password)
         conn.select("INBOX")
@@ -82,12 +81,14 @@ def poll_and_print(config: Config, *, now: datetime | None = None) -> int:
             section = _section_for(msg, ec, config.render)
             brief = Brief(date=now or datetime.now(), sections=[section])
 
-            # Open the printer lazily, only once we actually have mail to print.
-            if printer is None:
-                from .printer import open_printer
-
-                printer = open_printer(config.printer).__enter__()
-            render_brief(printer, brief, config.render, footer=False, printer_cfg=config.printer)
+            # Hand the print to the shared queue (so it can't collide with a
+            # brief or the button) and wait: only mark the message read once it
+            # has actually printed, so a busy/offline printer doesn't lose mail.
+            if not _print(config, brief):
+                # Printer down — stop now and leave the rest unread; the next
+                # poll retries from here instead of hammering every message.
+                log.warning("printer unavailable; deferring mail to next poll")
+                break
             printed += 1
 
             if ec.mark_read:
@@ -95,11 +96,6 @@ def poll_and_print(config: Config, *, now: datetime | None = None) -> int:
     except (OSError, imaplib.IMAP4.error) as exc:
         log.warning("IMAP error (%s)", exc)
     finally:
-        if printer is not None:
-            try:
-                printer.close()
-            except Exception:
-                pass
         try:
             conn.logout()
         except (OSError, imaplib.IMAP4.error):
@@ -108,6 +104,19 @@ def poll_and_print(config: Config, *, now: datetime | None = None) -> int:
     if printed:
         log.info("printed %d new message(s)", printed)
     return printed
+
+
+def _print(config: Config, brief: Brief) -> bool:
+    """Render+print one message via the shared queue. True if it printed."""
+    from .printer import open_printer
+    from . import printqueue
+
+    def _do():
+        with open_printer(config.printer) as printer:
+            render_brief(printer, brief, config.render, footer=False,
+                         printer_cfg=config.printer)
+
+    return printqueue.submit("email", _do).wait()
 
 
 # --- message -> printable section ------------------------------------------

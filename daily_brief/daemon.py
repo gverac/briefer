@@ -153,6 +153,9 @@ class Scheduler:
             log.error("mailbox poll failed: %s", exc)
 
     def run(self, interval: float = 20.0) -> None:
+        from . import printqueue
+
+        printqueue.QUEUE.start()  # serialize all printing through one worker
         log.info("scheduler started (%d schedules)", len(self.config.schedules))
         while not self._stop.wait(interval):
             try:
@@ -302,15 +305,20 @@ class Controller:
         lastbrief.reprint(self.scheduler.config)
 
     def _print_notice(self, brief):
-        """Print a one-off notice receipt (no daily-brief footer); never raises."""
+        """Print a one-off notice receipt (no daily-brief footer); never raises.
+
+        Goes through the shared print queue (so it can't collide with a brief or
+        email) and waits, so a goodbye notice is on paper before we power off.
+        """
         cfg = self.scheduler.config
         from .printer import open_printer
+        from . import printqueue
 
-        try:
+        def _do():
             with open_printer(cfg.printer) as printer:
                 render_brief(printer, brief, cfg.render, footer=False, printer_cfg=cfg.printer)
-        except Exception as exc:
-            log.error("could not print notice: %s", exc)
+
+        printqueue.submit("notice", _do).wait()
 
     def _print_ap_notice(self):
         """Print the AP's SSID/password/URL so a screenless device is usable."""

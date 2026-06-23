@@ -33,27 +33,35 @@ def print_and_save(cfg, brief):
 
     The single entry point every brief-print path should use, so the button's
     reprint always has the latest brief — whether it was fired by the scheduler,
-    the CLI, or the web console's "Print now".
+    the CLI, or the web console's "Print now". The actual print is run on the
+    shared print queue so it can't collide with another job on the one printer;
+    we wait for it so the saved image and return value stay in step.
     """
     from .render import render_brief
+    from . import printqueue
 
-    with open_printer(cfg.printer) as printer:
-        image = render_brief(printer, brief, cfg.render, printer_cfg=cfg.printer)
-    save(image)
-    return image
+    def _do():
+        with open_printer(cfg.printer) as printer:
+            image = render_brief(printer, brief, cfg.render, printer_cfg=cfg.printer)
+        save(image)
+        return image
+
+    job = printqueue.submit("brief", _do)
+    job.wait()
+    return job.result
 
 
 def reprint(cfg) -> bool:
     """Reprint the last saved brief. Returns False if there's none, or on error."""
     from PIL import Image
+    from . import printqueue
 
     if not LAST_BRIEF_PATH.is_file():
         log.warning("no saved brief to reprint")
         return False
-    try:
+
+    def _do():
         with Image.open(LAST_BRIEF_PATH) as image, open_printer(cfg.printer) as printer:
             send_image(printer, image, cfg.printer)
-        return True
-    except Exception as exc:
-        log.error("reprint failed: %s", exc)
-        return False
+
+    return printqueue.submit("reprint", _do).wait()
